@@ -1,0 +1,293 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║           STUDENT PORTAL - DATABASE SCHEMA SUMMARY                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+Total Tables: 7
+All tables have RLS (Row Level Security) enabled
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TABLE 1: users (Authentication & User Profiles)
+─────────────────────────────────────────────
+Primary Key: id (UUID)
+Unique: email
+
+Columns:
+  ✓ id (UUID) - Primary Key
+  ✓ email (TEXT) - Unique, NOT NULL
+  ✓ password_hash (TEXT) - NOT NULL
+  ✓ name (TEXT) - NOT NULL
+  ✓ role (TEXT) - 'student' OR 'admin'
+  ✓ phone (TEXT) - Optional
+  ✓ address (TEXT) - Optional
+  ✓ created_at (TIMESTAMPTZ) - Automatic
+  ✓ updated_at (TIMESTAMPTZ) - Automatic
+
+Foreign Keys Referenced By:
+  - courses.created_by
+  - enrollments.student_id
+  - enrollments.approved_by
+  - student_profiles.user_id
+  - course_materials.uploaded_by
+  - grades.graded_by
+  - notifications.user_id
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TABLE 2: courses (Course Information)
+─────────────────────────────────────
+Primary Key: id (UUID)
+Foreign Keys: created_by (users)
+
+Columns:
+  ✓ id (UUID) - Primary Key
+  ✓ name (TEXT) - NOT NULL
+  ✓ description (TEXT) - NOT NULL
+  ✓ start_date (DATE) - NOT NULL
+  ✓ end_date (DATE) - NOT NULL
+  ✓ capacity (INTEGER) - Default: 50
+  ✓ enrolled_count (INTEGER) - Default: 0
+  ✓ created_by (UUID) - Foreign Key to users
+  ✓ created_at (TIMESTAMPTZ) - Automatic
+  ✓ updated_at (TIMESTAMPTZ) - Automatic
+
+Referenced By:
+  - enrollments.course_id
+  - course_materials.course_id
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TABLE 3: enrollments (Course Enrollment & Requests)
+────────────────────────────────────────────────────
+Primary Key: id (UUID)
+Foreign Keys: student_id, course_id, approved_by (users)
+Unique Constraint: UNIQUE(student_id, course_id)
+
+Columns:
+  ✓ id (UUID) - Primary Key
+  ✓ student_id (UUID) - Foreign Key to users, NOT NULL
+  ✓ course_id (UUID) - Foreign Key to courses, NOT NULL
+  ✓ status (TEXT) - 'pending' | 'approved' | 'rejected'
+  ✓ request_date (TIMESTAMPTZ) - Default: now()
+  ✓ approved_date (TIMESTAMPTZ) - Optional
+  ✓ approved_by (UUID) - Foreign Key to users, Optional
+  ✓ created_at (TIMESTAMPTZ) - Automatic
+  ✓ updated_at (TIMESTAMPTZ) - Automatic
+
+Referenced By:
+  - grades.enrollment_id
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TABLE 4: student_profiles (Extended Student Data)
+──────────────────────────────────────────────────
+Primary Key: id (UUID)
+Foreign Keys: user_id (users) - UNIQUE (one-to-one)
+
+Columns:
+  ✓ id (UUID) - Primary Key
+  ✓ user_id (UUID) - Foreign Key to users, UNIQUE
+  ✓ bio (TEXT) - Optional
+  ✓ gpa (NUMERIC(3,2)) - Default: 0.00
+  ✓ total_credits (INTEGER) - Default: 0
+  ✓ enrollment_year (INTEGER) - Optional
+  ✓ created_at (TIMESTAMPTZ) - Automatic
+  ✓ updated_at (TIMESTAMPTZ) - Automatic
+
+Note: One-to-one relationship with users. Only students have profiles.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TABLE 5: course_materials (Course Content)
+───────────────────────────────────────────
+Primary Key: id (UUID)
+Foreign Keys: course_id (courses), uploaded_by (users)
+
+Columns:
+  ✓ id (UUID) - Primary Key
+  ✓ course_id (UUID) - Foreign Key to courses, NOT NULL
+  ✓ title (TEXT) - NOT NULL
+  ✓ description (TEXT) - Optional
+  ✓ file_url (TEXT) - Optional
+  ✓ material_type (TEXT) - 'lecture' | 'assignment' | 'resource'
+  ✓ week_number (INTEGER) - Optional (1-16)
+  ✓ uploaded_by (UUID) - Foreign Key to users, NOT NULL
+  ✓ created_at (TIMESTAMPTZ) - Automatic
+  ✓ updated_at (TIMESTAMPTZ) - Automatic
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TABLE 6: grades (Student Grades & Scores)
+──────────────────────────────────────────
+Primary Key: id (UUID)
+Foreign Keys: enrollment_id (enrollments), graded_by (users)
+
+Columns:
+  ✓ id (UUID) - Primary Key
+  ✓ enrollment_id (UUID) - Foreign Key to enrollments, NOT NULL
+  ✓ assignment_name (TEXT) - NOT NULL
+  ✓ score (NUMERIC(5,2)) - NOT NULL
+  ✓ max_score (NUMERIC(5,2)) - Default: 100
+  ✓ percentage (NUMERIC(5,2)) - GENERATED (auto-calculated)
+  ✓ graded_date (TIMESTAMPTZ) - Default: now()
+  ✓ graded_by (UUID) - Foreign Key to users, NOT NULL
+  ✓ notes (TEXT) - Optional
+  ✓ created_at (TIMESTAMPTZ) - Automatic
+  ✓ updated_at (TIMESTAMPTZ) - Automatic
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TABLE 7: notifications (System Notifications)
+──────────────────────────────────────────────
+Primary Key: id (UUID)
+Foreign Keys: user_id (users)
+
+Columns:
+  ✓ id (UUID) - Primary Key
+  ✓ user_id (UUID) - Foreign Key to users, NOT NULL
+  ✓ type (TEXT) - 'enrollment' | 'grade' | 'announcement' | 'system'
+  ✓ title (TEXT) - NOT NULL
+  ✓ message (TEXT) - NOT NULL
+  ✓ related_id (UUID) - Optional (ref to related record)
+  ✓ is_read (BOOLEAN) - Default: false
+  ✓ read_at (TIMESTAMPTZ) - Optional
+  ✓ created_at (TIMESTAMPTZ) - Automatic
+
+═══════════════════════════════════════════════════════════════════════════════
+
+RELATIONSHIP DIAGRAM
+────────────────────
+
+                    ┌─────────────┐
+                    │   users     │
+                    └─────────────┘
+                    /      |      \
+                   /       |       \
+            (created_by) (1:N) (1:N)
+              /           |        \
+             /            |         \
+        ┌─────────┐  ┌──────────┐  ┌─────────────────┐
+        │ courses │  │enrollments│  │student_profiles│
+        └─────────┘  └──────────┘  └─────────────────┘
+            │ (1:N)      │ (1:N)
+            │            │
+      ┌──────────────┐   │
+      │course_        │   │
+      │materials     │   │
+      └──────────────┘   │
+                      ┌──────────┐
+                      │  grades  │
+                      └──────────┘
+
+              ┌─────────────────┐
+              │ notifications   │
+              │ (user_id ref)   │
+              └─────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+KEY CONSTRAINTS SUMMARY
+───────────────────────
+
+Primary Keys:        7 (all UUID, auto-generated)
+Foreign Keys:       14 total
+Unique Constraints:  2 (email, student_id+course_id)
+Check Constraints:   5 (role, status, material_type, type)
+Generated Columns:   1 (grades.percentage)
+
+Indexes:            12 (on commonly queried columns)
+RLS Enabled:        All 7 tables
+Cascading Deletes:  Yes (for data integrity)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+SECURITY & ACCESS CONTROL
+──────────────────────────
+
+All tables protected by RLS policies:
+
+users:
+  ✓ Students can read/update own data
+  ✓ Admins can read all users
+
+courses:
+  ✓ All authenticated users can read
+  ✓ Only admins can create/update/delete
+
+enrollments:
+  ✓ Students can read own enrollments
+  ✓ Students can request enrollment
+  ✓ Admins can read all, approve/reject
+
+student_profiles:
+  ✓ Students can read/update own profile
+  ✓ Admins can read all, update any
+
+course_materials:
+  ✓ Enrolled students can read course materials
+  ✓ Admins can create/update/delete
+
+grades:
+  ✓ Students can read own grades
+  ✓ Admins can read all, create/update/delete
+
+notifications:
+  ✓ Users can read own notifications
+  ✓ Users can mark own as read
+  ✓ Admins can create/delete
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TYPICAL DATA FLOW
+─────────────────
+
+1. User Registration → insert into users, create student_profiles if student
+2. Course Creation → admin inserts into courses
+3. Enrollment Request → student inserts into enrollments (status: pending)
+4. Admin Approval → admin updates enrollments (status: approved, approved_by)
+5. Add Materials → admin inserts into course_materials
+6. View Materials → student sees materials (enrolled + approved)
+7. Grade Assignment → admin inserts into grades
+8. Notifications → auto-created for enrollment changes, grade updates
+
+═══════════════════════════════════════════════════════════════════════════════
+
+RECOMMENDED INDEXES (Performance Optimization)
+───────────────────────────────────────────────
+
+Already Created:
+  ✓ idx_users_email
+  ✓ idx_users_role
+  ✓ idx_courses_start_date
+  ✓ idx_courses_created_by
+  ✓ idx_enrollments_student_id
+  ✓ idx_enrollments_course_id
+  ✓ idx_enrollments_status
+  ✓ idx_enrollments_request_date
+  ✓ idx_student_profiles_user_id
+  ✓ idx_course_materials_course_id
+  ✓ idx_course_materials_week_number
+  ✓ idx_grades_enrollment_id
+  ✓ idx_grades_graded_by
+  ✓ idx_notifications_user_id
+  ✓ idx_notifications_is_read
+  ✓ idx_notifications_created_at
+
+═══════════════════════════════════════════════════════════════════════════════
+
+CAPACITY & PERFORMANCE ESTIMATES
+─────────────────────────────────
+
+For 10,000 students:
+  - users: ~11,000 records (students + admins)
+  - courses: ~100-500 records
+  - enrollments: ~50,000-100,000 records
+  - grades: ~500,000-1,000,000 records
+  - student_profiles: ~10,000 records
+  - notifications: ~1,000,000+ records (archival recommended)
+  - course_materials: ~1,000-5,000 records
+
+Database Size: ~500MB - 1GB (with proper indexing and archival)
+Query Response Time: <100ms for typical queries
+
+═══════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,326 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                     DATABASE TABLES & COLUMNS INDEX                        ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+TABLE 1: users
+═════════════════════════════════════════════════════════════════════════════
+
+Purpose: Authentication and user profile management
+Records: Students + Admins
+RLS: Enabled ✓
+Rows: ~11,000 (for 10k students)
+
+COLUMNS:
+────────────────────────────────────────────────────────────────────────────
+ # │ Column          │ Type        │ Constraints                  │ Index
+───┼─────────────────┼─────────────┼──────────────────────────────┼────────
+ 1 │ id              │ UUID        │ PK, Default: gen_random_uuid │ YES
+ 2 │ email           │ TEXT        │ UNIQUE, NOT NULL             │ YES
+ 3 │ password_hash   │ TEXT        │ NOT NULL                     │ NO
+ 4 │ name            │ TEXT        │ NOT NULL                     │ NO
+ 5 │ role            │ TEXT        │ NOT NULL, CHECK              │ YES
+ 6 │ phone           │ TEXT        │ NULLABLE                     │ NO
+ 7 │ address         │ TEXT        │ NULLABLE                     │ NO
+ 8 │ created_at      │ TIMESTAMPTZ │ Default: now()               │ NO
+ 9 │ updated_at      │ TIMESTAMPTZ │ Default: now()               │ NO
+────────────────────────────────────────────────────────────────────────────
+
+CHECK CONSTRAINT: role = 'student' OR 'admin'
+
+INDEXES:
+  ✓ idx_users_email - Quick email lookup for login
+  ✓ idx_users_role - Filter by student/admin
+
+
+TABLE 2: courses
+═════════════════════════════════════════════════════════════════════════════
+
+Purpose: Course catalog and information
+Records: Course instances
+RLS: Enabled ✓
+Rows: ~500 (for 10k students)
+
+COLUMNS:
+────────────────────────────────────────────────────────────────────────────
+ # │ Column         │ Type        │ Constraints                  │ Index
+───┼────────────────┼─────────────┼──────────────────────────────┼────────
+ 1 │ id             │ UUID        │ PK, Default: gen_random_uuid │ YES
+ 2 │ name           │ TEXT        │ NOT NULL                     │ NO
+ 3 │ description    │ TEXT        │ NOT NULL                     │ NO
+ 4 │ start_date     │ DATE        │ NOT NULL                     │ YES
+ 5 │ end_date       │ DATE        │ NOT NULL                     │ NO
+ 6 │ capacity       │ INTEGER     │ NOT NULL, Default: 50        │ NO
+ 7 │ enrolled_count │ INTEGER     │ NOT NULL, Default: 0         │ NO
+ 8 │ created_by     │ UUID        │ FK → users, NOT NULL         │ YES
+ 9 │ created_at     │ TIMESTAMPTZ │ Default: now()               │ NO
+10 │ updated_at     │ TIMESTAMPTZ │ Default: now()               │ NO
+────────────────────────────────────────────────────────────────────────────
+
+FOREIGN KEYS:
+  → created_by REFERENCES users(id) ON DELETE CASCADE
+
+INDEXES:
+  ✓ idx_courses_start_date - Filter active/upcoming courses
+  ✓ idx_courses_created_by - Filter courses by admin
+
+
+TABLE 3: enrollments
+═════════════════════════════════════════════════════════════════════════════
+
+Purpose: Track enrollment requests and approval status
+Records: Student-course enrollment pairs
+RLS: Enabled ✓
+Rows: ~100,000 (for 10k students)
+
+COLUMNS:
+────────────────────────────────────────────────────────────────────────────
+ # │ Column         │ Type        │ Constraints                  │ Index
+───┼────────────────┼─────────────┼──────────────────────────────┼────────
+ 1 │ id             │ UUID        │ PK, Default: gen_random_uuid │ YES
+ 2 │ student_id     │ UUID        │ FK → users, NOT NULL         │ YES
+ 3 │ course_id      │ UUID        │ FK → courses, NOT NULL       │ YES
+ 4 │ status         │ TEXT        │ NOT NULL, CHECK, Default     │ YES
+ 5 │ request_date   │ TIMESTAMPTZ │ Default: now()               │ YES
+ 6 │ approved_date  │ TIMESTAMPTZ │ NULLABLE                     │ NO
+ 7 │ approved_by    │ UUID        │ FK → users, NULLABLE         │ NO
+ 8 │ created_at     │ TIMESTAMPTZ │ Default: now()               │ NO
+ 9 │ updated_at     │ TIMESTAMPTZ │ Default: now()               │ NO
+────────────────────────────────────────────────────────────────────────────
+
+CONSTRAINTS:
+  ✓ UNIQUE(student_id, course_id) - Prevent duplicate enrollments
+  ✓ CHECK: status IN ('pending', 'approved', 'rejected')
+
+FOREIGN KEYS:
+  → student_id REFERENCES users(id) ON DELETE CASCADE
+  → course_id REFERENCES courses(id) ON DELETE CASCADE
+  → approved_by REFERENCES users(id) ON DELETE SET NULL
+
+INDEXES:
+  ✓ idx_enrollments_student_id - Get student's enrollments
+  ✓ idx_enrollments_course_id - Get course's enrollments
+  ✓ idx_enrollments_status - Filter by approval status
+  ✓ idx_enrollments_request_date - Sort by request date
+
+
+TABLE 4: student_profiles
+═════════════════════════════════════════════════════════════════════════════
+
+Purpose: Extended student academic data and statistics
+Records: One per student
+RLS: Enabled ✓
+Rows: ~10,000 (for 10k students)
+
+COLUMNS:
+────────────────────────────────────────────────────────────────────────────
+ # │ Column           │ Type        │ Constraints                  │ Index
+───┼──────────────────┼─────────────┼──────────────────────────────┼────────
+ 1 │ id               │ UUID        │ PK, Default: gen_random_uuid │ YES
+ 2 │ user_id          │ UUID        │ FK → users, UNIQUE, NOT NULL │ YES
+ 3 │ bio              │ TEXT        │ NULLABLE                     │ NO
+ 4 │ gpa              │ NUMERIC(3,2)│ Default: 0.00                │ NO
+ 5 │ total_credits    │ INTEGER     │ Default: 0                   │ NO
+ 6 │ enrollment_year  │ INTEGER     │ NULLABLE                     │ NO
+ 7 │ created_at       │ TIMESTAMPTZ │ Default: now()               │ NO
+ 8 │ updated_at       │ TIMESTAMPTZ │ Default: now()               │ NO
+────────────────────────────────────────────────────────────────────────────
+
+CONSTRAINTS:
+  ✓ UNIQUE(user_id) - One profile per student (1:1 relationship)
+
+FOREIGN KEYS:
+  → user_id REFERENCES users(id) ON DELETE CASCADE
+
+INDEXES:
+  ✓ idx_student_profiles_user_id - Quick profile lookup
+
+
+TABLE 5: course_materials
+═════════════════════════════════════════════════════════════════════════════
+
+Purpose: Store course content (lectures, assignments, resources)
+Records: Material files and resources
+RLS: Enabled ✓
+Rows: ~5,000 (for 10k students)
+
+COLUMNS:
+────────────────────────────────────────────────────────────────────────────
+ # │ Column         │ Type        │ Constraints                  │ Index
+───┼────────────────┼─────────────┼──────────────────────────────┼────────
+ 1 │ id             │ UUID        │ PK, Default: gen_random_uuid │ YES
+ 2 │ course_id      │ UUID        │ FK → courses, NOT NULL       │ YES
+ 3 │ title          │ TEXT        │ NOT NULL                     │ NO
+ 4 │ description    │ TEXT        │ NULLABLE                     │ NO
+ 5 │ file_url       │ TEXT        │ NULLABLE                     │ NO
+ 6 │ material_type  │ TEXT        │ NOT NULL, CHECK              │ NO
+ 7 │ week_number    │ INTEGER     │ NULLABLE (1-16)              │ YES
+ 8 │ uploaded_by    │ UUID        │ FK → users, NOT NULL         │ NO
+ 9 │ created_at     │ TIMESTAMPTZ │ Default: now()               │ NO
+10 │ updated_at     │ TIMESTAMPTZ │ Default: now()               │ NO
+────────────────────────────────────────────────────────────────────────────
+
+CONSTRAINTS:
+  ✓ CHECK: material_type IN ('lecture', 'assignment', 'resource')
+
+FOREIGN KEYS:
+  → course_id REFERENCES courses(id) ON DELETE CASCADE
+  → uploaded_by REFERENCES users(id) ON DELETE SET NULL
+
+INDEXES:
+  ✓ idx_course_materials_course_id - Get course's materials
+  ✓ idx_course_materials_week_number - Filter by week
+
+
+TABLE 6: grades
+═════════════════════════════════════════════════════════════════════════════
+
+Purpose: Track student grades and performance
+Records: Assignment/exam scores
+RLS: Enabled ✓
+Rows: ~1,000,000 (for 10k students)
+
+COLUMNS:
+────────────────────────────────────────────────────────────────────────────
+ # │ Column         │ Type        │ Constraints                  │ Index
+───┼────────────────┼─────────────┼──────────────────────────────┼────────
+ 1 │ id             │ UUID        │ PK, Default: gen_random_uuid │ YES
+ 2 │ enrollment_id  │ UUID        │ FK → enrollments, NOT NULL   │ YES
+ 3 │ assignment_name│ TEXT        │ NOT NULL                     │ NO
+ 4 │ score          │ NUMERIC(5,2)│ NOT NULL                     │ NO
+ 5 │ max_score      │ NUMERIC(5,2)│ NOT NULL, Default: 100       │ NO
+ 6 │ percentage     │ NUMERIC(5,2)│ GENERATED (score/max*100)    │ NO
+ 7 │ graded_date    │ TIMESTAMPTZ │ Default: now()               │ NO
+ 8 │ graded_by      │ UUID        │ FK → users, NOT NULL         │ YES
+ 9 │ notes          │ TEXT        │ NULLABLE                     │ NO
+10 │ created_at     │ TIMESTAMPTZ │ Default: now()               │ NO
+11 │ updated_at     │ TIMESTAMPTZ │ Default: now()               │ NO
+────────────────────────────────────────────────────────────────────────────
+
+NOTE: Column `percentage` is auto-calculated using GENERATED clause
+
+FOREIGN KEYS:
+  → enrollment_id REFERENCES enrollments(id) ON DELETE CASCADE
+  → graded_by REFERENCES users(id) ON DELETE SET NULL
+
+INDEXES:
+  ✓ idx_grades_enrollment_id - Get enrollment's grades
+  ✓ idx_grades_graded_by - Filter by grader/instructor
+
+
+TABLE 7: notifications
+═════════════════════════════════════════════════════════════════════════════
+
+Purpose: System notifications for users
+Records: User notifications
+RLS: Enabled ✓
+Rows: ~1,000,000+ (for 10k students) - ARCHIVAL RECOMMENDED
+
+COLUMNS:
+────────────────────────────────────────────────────────────────────────────
+ # │ Column         │ Type        │ Constraints                  │ Index
+───┼────────────────┼─────────────┼──────────────────────────────┼────────
+ 1 │ id             │ UUID        │ PK, Default: gen_random_uuid │ YES
+ 2 │ user_id        │ UUID        │ FK → users, NOT NULL         │ YES
+ 3 │ type           │ TEXT        │ NOT NULL, CHECK              │ NO
+ 4 │ title          │ TEXT        │ NOT NULL                     │ NO
+ 5 │ message        │ TEXT        │ NOT NULL                     │ NO
+ 6 │ related_id     │ UUID        │ NULLABLE                     │ NO
+ 7 │ is_read        │ BOOLEAN     │ Default: false               │ YES
+ 8 │ read_at        │ TIMESTAMPTZ │ NULLABLE                     │ NO
+ 9 │ created_at     │ TIMESTAMPTZ │ Default: now()               │ YES
+────────────────────────────────────────────────────────────────────────────
+
+CONSTRAINTS:
+  ✓ CHECK: type IN ('enrollment', 'grade', 'announcement', 'system')
+
+FOREIGN KEYS:
+  → user_id REFERENCES users(id) ON DELETE CASCADE
+
+INDEXES:
+  ✓ idx_notifications_user_id - Get user's notifications
+  ✓ idx_notifications_is_read - Filter unread notifications
+  ✓ idx_notifications_created_at - Sort by creation date
+
+
+═════════════════════════════════════════════════════════════════════════════
+GLOBAL STATISTICS
+═════════════════════════════════════════════════════════════════════════════
+
+COLUMN TYPES BREAKDOWN:
+  UUID ................ 7 columns (primary/foreign keys)
+  TEXT ............... 25+ columns (strings, descriptions)
+  DATE ................ 4 columns (course dates)
+  TIMESTAMPTZ ........ 25+ columns (timestamps)
+  INTEGER ............. 8 columns (counts, week numbers)
+  NUMERIC ............. 4 columns (GPA, scores, percentages)
+  BOOLEAN ............. 2 columns (is_read)
+
+TOTAL COLUMNS:      ~70
+TOTAL INDEXES:      12+ (indexed columns: 25+)
+TOTAL CONSTRAINTS:  25+ (PK, FK, UNIQUE, CHECK)
+GENERATED COLUMNS:   1 (percentage)
+
+DEFAULT VALUES:     12 columns have defaults
+NULLABLE COLUMNS:   ~20 columns (mostly optional fields)
+NOT NULL COLUMNS:   ~50 columns (required fields)
+
+═════════════════════════════════════════════════════════════════════════════
+INDEX REFERENCE GUIDE
+═════════════════════════════════════════════════════════════════════════════
+
+FAST LOOKUPS (Indexed):
+  ✓ Find user by email ..................... users.email
+  ✓ Find user by role ...................... users.role
+  ✓ Find courses by date range ............. courses.start_date
+  ✓ Find courses by creator ................ courses.created_by
+  ✓ Find student's enrollments ............. enrollments.student_id
+  ✓ Find course's enrollments .............. enrollments.course_id
+  ✓ Find enrollment by status .............. enrollments.status
+  ✓ Find recent enrollments ................ enrollments.request_date
+  ✓ Find student profile ................... student_profiles.user_id
+  ✓ Find course materials .................. course_materials.course_id
+  ✓ Find materials by week ................. course_materials.week_number
+  ✓ Find enrollment's grades ............... grades.enrollment_id
+  ✓ Find user's notifications .............. notifications.user_id
+  ✓ Find unread notifications .............. notifications.is_read
+  ✓ Find recent notifications .............. notifications.created_at
+
+SLOW LOOKUPS (NOT indexed - may need optimization):
+  ✗ Find user by name (consider adding index if frequently searched)
+  ✗ Find materials by type (consider adding index if frequently filtered)
+  ✗ Find grades by score (consider adding index if frequently range-queried)
+
+═════════════════════════════════════════════════════════════════════════════
+FOREIGN KEY RELATIONSHIPS
+═════════════════════════════════════════════════════════════════════════════
+
+FROM          TO              CONSTRAINT          ACTION
+──────────────────────────────────────────────────────────────
+courses       users           created_by          CASCADE DELETE
+enrollments   users           student_id          CASCADE DELETE
+enrollments   courses         course_id           CASCADE DELETE
+enrollments   users           approved_by         SET NULL
+student_profiles users        user_id             CASCADE DELETE
+course_materials courses      course_id           CASCADE DELETE
+course_materials users        uploaded_by         SET NULL
+grades        enrollments     enrollment_id       CASCADE DELETE
+grades        users           graded_by           SET NULL
+notifications users           user_id             CASCADE DELETE
+
+═════════════════════════════════════════════════════════════════════════════
+RLS POLICY COUNT BY TABLE
+═════════════════════════════════════════════════════════════════════════════
+
+Table                  SELECT  INSERT  UPDATE  DELETE  TOTAL
+─────────────────────────────────────────────────────────────
+users ................. 2       0       1       0       3
+courses ............... 1       1       1       1       4
+enrollments ........... 2       1       1       1       5
+student_profiles ...... 2       0       2       0       4
+course_materials ...... 1       1       1       1       4
+grades ................ 2       1       1       1       5
+notifications ......... 1       1       1       1       4
+
+TOTAL RLS POLICIES:                              29
+
+═════════════════════════════════════════════════════════════════════════════

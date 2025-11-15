@@ -1,0 +1,249 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║              STUDENT PORTAL - ENTITY RELATIONSHIP DIAGRAM                  ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+Entity Relationships (crow's foot notation):
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│  ┌──────────────────────┐                                             │
+│  │      USERS           │                                             │
+│  ├──────────────────────┤                                             │
+│  │ PK: id (UUID)        │                                             │
+│  │ UNIQUE: email        │                                             │
+│  │ password_hash        │                                             │
+│  │ name                 │                                             │
+│  │ role (enum)          │                                             │
+│  │ phone                │                                             │
+│  │ address              │                                             │
+│  │ created_at           │                                             │
+│  │ updated_at           │                                             │
+│  └──────────────────────┘                                             │
+│         ▲ │ │ ▲ ▲ ▲ ▲ ▲ ▲                                             │
+│         │ │ │ │ │ │ │ │ └── FK: approved_by (enrollments)           │
+│         │ │ │ │ │ │ │ └───── FK: uploaded_by (course_materials)     │
+│         │ │ │ │ │ │ └──────── FK: graded_by (grades)               │
+│         │ │ │ │ │ └─────────── FK: user_id (student_profiles)       │
+│         │ │ │ │ └────────────── FK: student_id (enrollments)        │
+│         │ │ │ └─────────────────── FK: created_by (courses)         │
+│         │ │ └──────────────────────── FK: user_id (notifications)   │
+│         │ └─────────────────────────── (1:N relationship)           │
+│         │                                                            │
+│    ┌────────────────────┐                                           │
+│    │  ENROLLMENTS       │                                           │
+│    ├────────────────────┤                                           │
+│    │ PK: id (UUID)      │────────────┐                              │
+│    │ FK: student_id ◄───│            │                              │
+│    │ FK: course_id ◄────┼────┐       │                              │
+│    │ status (enum)      │    │       │                              │
+│    │ request_date       │    │       │                              │
+│    │ approved_date      │    │       │                              │
+│    │ FK: approved_by◄───┼────┼───┐   │                              │
+│    │ created_at         │    │   │   │                              │
+│    │ updated_at         │    │   │   │                              │
+│    │ UNIQUE constraint  │    │   │   │                              │
+│    │ (student_id,       │    │   │   │                              │
+│    │  course_id)        │    │   │   │                              │
+│    └────────────────────┘    │   │   │                              │
+│         ▼                     │   │   │                              │
+│    ┌────────────────────┐    │   │   │                              │
+│    │   GRADES           │    │   │   │                              │
+│    ├────────────────────┤    │   │   │                              │
+│    │ PK: id (UUID)      │    │   │   │                              │
+│    │ FK: enrollment_id◄─┼────┘   │   │                              │
+│    │ assignment_name    │        │   │                              │
+│    │ score              │        │   │                              │
+│    │ max_score          │        │   │                              │
+│    │ percentage(GEN)    │        │   │                              │
+│    │ graded_date        │        │   │                              │
+│    │ FK: graded_by ◄────┼────────┼───┘                              │
+│    │ notes              │        │                                  │
+│    │ created_at         │        │                                  │
+│    │ updated_at         │        │                                  │
+│    └────────────────────┘        │                                  │
+│                                   │                                  │
+│    ┌──────────────────────────┐   │                                  │
+│    │     COURSES              │───┘                                  │
+│    ├──────────────────────────┤                                      │
+│    │ PK: id (UUID)            │                                      │
+│    │ name                     │                                      │
+│    │ description              │                                      │
+│    │ start_date               │                                      │
+│    │ end_date                 │                                      │
+│    │ capacity                 │                                      │
+│    │ enrolled_count           │                                      │
+│    │ FK: created_by ◄─────────┼──┐                                   │
+│    │ created_at               │  │                                   │
+│    │ updated_at               │  │                                   │
+│    └──────────────────────────┘  │                                   │
+│         ▲                         │                                   │
+│         │ (1:N)                   │                                   │
+│         └─────────────────────────┤─ FK references ──────┐           │
+│                                   │                      │           │
+│    ┌──────────────────────────┐   │                      │           │
+│    │  COURSE_MATERIALS        │   │                      │           │
+│    ├──────────────────────────┤   │                      │           │
+│    │ PK: id (UUID)            │   │                      │           │
+│    │ FK: course_id ◄──────────┼───┘                      │           │
+│    │ title                    │                          │           │
+│    │ description              │                          │           │
+│    │ file_url                 │                          │           │
+│    │ material_type (enum)     │                          │           │
+│    │ week_number              │                          │           │
+│    │ FK: uploaded_by ◄────────┼──────────┐               │           │
+│    │ created_at               │          │               │           │
+│    │ updated_at               │          │               │           │
+│    └──────────────────────────┘          │               │           │
+│                                          │               │           │
+│    ┌──────────────────────────┐          │               │           │
+│    │ STUDENT_PROFILES         │          │               │           │
+│    ├──────────────────────────┤          │               │           │
+│    │ PK: id (UUID)            │          │               │           │
+│    │ FK: user_id (UNIQUE) ◄───┼──────────┼───────────────┘           │
+│    │ bio                      │          │                           │
+│    │ gpa                      │          │                           │
+│    │ total_credits            │          │                           │
+│    │ enrollment_year          │          │                           │
+│    │ created_at               │          │                           │
+│    │ updated_at               │          │                           │
+│    │ (1:1 with users)         │          │                           │
+│    └──────────────────────────┘          │                           │
+│                                          │                           │
+│    ┌──────────────────────────┐          │                           │
+│    │  NOTIFICATIONS           │          │                           │
+│    ├──────────────────────────┤          │                           │
+│    │ PK: id (UUID)            │          │                           │
+│    │ FK: user_id ◄────────────┼──────────┘                           │
+│    │ type (enum)              │                                      │
+│    │ title                    │                                      │
+│    │ message                  │                                      │
+│    │ related_id (optional)    │                                      │
+│    │ is_read                  │                                      │
+│    │ read_at                  │                                      │
+│    │ created_at               │                                      │
+│    └──────────────────────────┘                                      │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+RELATIONSHIP SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+1. USERS (1) ──────────── (N) COURSES
+   └─ One admin creates many courses
+
+2. USERS (1) ──────────── (N) ENROLLMENTS
+   └─ One student has many enrollments
+   └─ One admin approves many enrollments
+
+3. COURSES (1) ──────────── (N) ENROLLMENTS
+   └─ One course has many enrollment requests
+
+4. ENROLLMENTS (1) ──────────── (N) GRADES
+   └─ One enrollment has many grades
+
+5. USERS (1) ──────────── (1) STUDENT_PROFILES
+   └─ One student has one profile (unique relationship)
+
+6. COURSES (1) ──────────── (N) COURSE_MATERIALS
+   └─ One course has many materials
+
+7. USERS (1) ──────────── (N) NOTIFICATIONS
+   └─ One user receives many notifications
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DATA FLOW EXAMPLE
+═══════════════════════════════════════════════════════════════════════════════
+
+User Registration:
+  ┌─────────┐
+  │  USER   │ ─────────┐
+  └─────────┘          │ (1:1)
+                       ▼
+            ┌──────────────────────┐
+            │ STUDENT_PROFILES     │
+            └──────────────────────┘
+
+
+Course Enrollment Process:
+  ┌─────────┐     ┌──────────┐
+  │  USER   │ ──► │ COURSES  │
+  │(student)│     │(enrolled)│
+  └─────────┘     └──────────┘
+      ▲                ▲
+      │                │
+      │  (pending)     │
+      │                │
+      └─────┬──────────┘
+            │
+       ┌─────────────────┐
+       │  ENROLLMENTS    │
+       │(status: pending)│
+       └─────────────────┘
+            ▲
+            │ (admin approves)
+            │
+       ┌─────────────┐
+       │  ADMIN      │
+       │(approved_by)│
+       └─────────────┘
+
+
+Student Takes Course & Gets Grades:
+  ┌─────────┐
+  │ STUDENT │
+  └────┬────┘
+       │
+       ▼
+  ┌──────────────────┐
+  │ ENROLLMENTS      │ (status: approved)
+  │ (student, course)│
+  └────┬─────────────┘
+       │
+       ├─────────────────────────────────┐
+       │                                 │
+       ▼                                 ▼
+  ┌──────────────┐              ┌─────────────────┐
+  │   GRADES     │              │ COURSE_MATERIALS│
+  │  (scores,    │              │ (lectures,      │
+  │   feedback)  │              │  assignments)   │
+  └──────────────┘              └─────────────────┘
+
+
+Notification Flow:
+  ┌──────────────┐
+  │ ACTION       │ (enrollment approved, grade given, etc.)
+  └──────┬───────┘
+         │
+         ▼
+  ┌────────────────────┐
+  │ NOTIFICATIONS      │
+  │ (created for user) │
+  └────────────────────┘
+         ▲
+         │
+  ┌──────┴──────┐
+  │ USER        │ (reads, marks as read)
+  └─────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+KEY STATISTICS
+═══════════════════════════════════════════════════════════════════════════════
+
+Total Tables:              7
+Total Columns:            ~70
+Primary Keys:              7 (all UUID)
+Foreign Keys:             14
+Unique Constraints:        2
+Check Constraints:         5
+Generated Columns:         1
+Indexes:                  12+
+RLS Policies:            25+
+
+Max Table Size (indexed):  2 GB
+Estimated Growth: ~500MB per 10,000 students
+
+═══════════════════════════════════════════════════════════════════════════════
