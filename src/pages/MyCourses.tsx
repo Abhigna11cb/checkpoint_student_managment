@@ -1,49 +1,61 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Calendar, Filter } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import { EnrollmentSummary, getMyCourses } from '../api/apiService';
+
+const normalizeStatus = (status?: string) => {
+  if (!status) return 'Pending';
+  const lowered = status.toLowerCase();
+  if (lowered.includes('approve')) return 'Approved';
+  if (lowered.includes('reject') || lowered.includes('decline')) return 'Rejected';
+  if (lowered.includes('pending')) return 'Pending';
+  return status;
+};
 
 function MyCourses() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [filter, setFilter] = useState('All');
+  const [courses, setCourses] = useState<EnrollmentSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const courses = [
-    {
-      id: 1,
-      courseName: 'Web Development Fundamentals',
-      startDate: '2024-01-15',
-      status: 'Approved'
-    },
-    {
-      id: 2,
-      courseName: 'React Advanced Patterns',
-      startDate: '2024-02-01',
-      status: 'Approved'
-    },
-    {
-      id: 3,
-      courseName: 'Database Design',
-      startDate: '2024-03-10',
-      status: 'Pending'
-    },
-    {
-      id: 4,
-      courseName: 'Node.js Backend Development',
-      startDate: '2024-04-01',
-      status: 'Not-approved'
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await getMyCourses();
+        setCourses(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load your courses');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
+  const filters = useMemo(() => {
+    const unique = Array.from(new Set(courses.map((course) => normalizeStatus(course.status))));
+    return ['All', ...unique];
+  }, [courses]);
+
+  const filteredCourses = useMemo(() => {
+    if (filter === 'All') {
+      return courses;
     }
-  ];
+    return courses.filter((course) => normalizeStatus(course.status) === filter);
+  }, [courses, filter]);
 
-  const filteredCourses = filter === 'All'
-    ? courses
-    : courses.filter(c => c.status === filter);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (status?: string) => {
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
       case 'Approved':
         return 'bg-green-100 text-green-700 border-green-200';
       case 'Pending':
         return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'Not-approved':
+      case 'Rejected':
         return 'bg-red-100 text-red-700 border-red-200';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-200';
@@ -69,14 +81,21 @@ function MyCourses() {
                 onChange={(e) => setFilter(e.target.value)}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option>All</option>
-                <option>Approved</option>
-                <option>Pending</option>
-                <option>Not-approved</option>
+                {filters.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
               </select>
             </div>
 
-            {filteredCourses.length === 0 ? (
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm font-medium">
+                {error}
+              </div>
+            )}
+
+            {isLoading ? (
+              <div className="text-center py-16 text-gray-500">Loading your courses...</div>
+            ) : filteredCourses.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Calendar className="w-12 h-12 text-gray-400" />
@@ -103,17 +122,21 @@ function MyCourses() {
                         }`}
                       >
                         <td className="py-4 px-4">
-                          <span className="font-medium text-gray-800">{course.courseName}</span>
+                          <span className="font-medium text-gray-800">
+                            {course.courseName || 'Course'}
+                          </span>
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-2 text-gray-600">
                             <Calendar className="w-4 h-4" />
-                            <span>{new Date(course.startDate).toLocaleDateString()}</span>
+                            <span>
+                              {course.startDate ? new Date(course.startDate).toLocaleDateString() : 'TBD'}
+                            </span>
                           </div>
                         </td>
                         <td className="py-4 px-4">
                           <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(course.status)}`}>
-                            {course.status}
+                            {normalizeStatus(course.status)}
                           </span>
                         </td>
                       </tr>
